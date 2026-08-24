@@ -24,6 +24,8 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
@@ -42,7 +44,11 @@ import java.util.concurrent.TimeoutException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Requires test-specific gRPC interception and worker heartbeat configuration in addition to envconfig options.")
+@Category(NeedsCloudAdaptation.class)
 public class ActivityCancellationTokenIntegrationTest {
 
   private final List<PollNexusTaskQueueRequest> workerCommandPollRequests =

@@ -112,6 +112,21 @@ Values from `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY`, `TEMPO
 `TEMPORAL_GRPC_META_*` override the selected profile. Envconfig mode connects to an existing server
 and namespace; it does not create or register either one.
 
+The `:temporal-sdk:testCloud` task runs tests that are eligible for Temporal Cloud. It uses the same
+envconfig variables and excludes tests annotated with a `CloudTestExclusion` JUnit category. Tests
+are Cloud-eligible by default; use the narrowest applicable exclusion reason when a test requires a
+local server, requires Cloud resources that CI does not provision, or still needs Cloud-specific
+adaptation. Run `./gradlew :temporal-sdk:testCloud --test-dry-run` to inventory the selected tests
+without executing them. The normal `test` task continues to run Cloud-excluded tests locally.
+
+JUnit category marker interfaces are the Java equivalent of test-runner traits. Every Cloud
+exclusion must pair its reason category with a complete explanatory note:
+
+```java
+@CloudTestExclusionNote("Starts an in-process time-skipping server.")
+@Category(RequiresLocalServer.class)
+```
+
 ## Things to Avoid
 
 Avoid changes that make review harder without improving the contribution:
