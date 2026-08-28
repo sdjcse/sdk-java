@@ -2,6 +2,7 @@ package io.temporal.internal.client;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +23,7 @@ import io.temporal.internal.nexus.NexusOperationMetadata;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.After;
 import org.junit.Assert;
@@ -132,8 +134,65 @@ public class RootActivityClientInvokerTest {
   }
 
   @Test
-  public void nexusContextWithoutMetadataStartsOrdinaryActivity() {
-    nexusContext.setRequestLinks(Collections.singletonList(workflowEventLink()));
+  public void nexusContextWithoutMetadataGetsAmbientLinksButFreshRequestIdAndNoCallback() {
+    Link link = workflowEventLink();
+    nexusContext.setRequestLinks(Collections.singletonList(link));
+    nexusContext.setRequestId("ambient-nexus-request-id");
+
+    invoker.startActivity(newStartActivityInput());
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient).startActivity(captor.capture());
+    StartActivityExecutionRequest request = captor.getValue();
+    Assert.assertFalse(request.getRequestId().isEmpty());
+    Assert.assertNotEquals("ambient-nexus-request-id", request.getRequestId());
+    Assert.assertEquals(Collections.singletonList(link), request.getLinksList());
+    Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
+    Assert.assertFalse(request.getOnConflictOptions().getAttachCompletionCallbacks());
+    Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
+  }
+
+  @Test
+  public void twoStartsForSameActivityIdGetDistinctFreshRequestIds() {
+    nexusContext.setRequestId("ambient-nexus-request-id");
+
+    invoker.startActivity(newStartActivityInput());
+    invoker.startActivity(newStartActivityInput());
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient, times(2)).startActivity(captor.capture());
+    List<StartActivityExecutionRequest> requests = captor.getAllValues();
+    String firstRequestId = requests.get(0).getRequestId();
+    String secondRequestId = requests.get(1).getRequestId();
+    Assert.assertNotEquals(firstRequestId, secondRequestId);
+    Assert.assertNotEquals("ambient-nexus-request-id", firstRequestId);
+    Assert.assertNotEquals("ambient-nexus-request-id", secondRequestId);
+  }
+
+  @Test
+  public void nexusContextWithoutAmbientStateStartsOrdinaryActivity() {
+    invoker.startActivity(newStartActivityInput());
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient).startActivity(captor.capture());
+    StartActivityExecutionRequest request = captor.getValue();
+    Assert.assertFalse(request.getRequestId().isEmpty());
+    Assert.assertEquals(0, request.getLinksCount());
+    Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
+    Assert.assertFalse(request.getOnConflictOptions().getAttachCompletionCallbacks());
+    Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
+  }
+
+  @Test
+  public void outsideNexusContextStartsOrdinaryActivity() {
+    CurrentNexusOperationContext.unset();
 
     invoker.startActivity(newStartActivityInput());
 
