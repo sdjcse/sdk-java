@@ -113,6 +113,23 @@ spring:
 spring:
   config:
     activate:
+      on-profile: auto-discovery-by-worker-name-resolver
+  temporal:
+    workers:
+      - task-queue: WorkerNameResolverTest
+        name: resolvedWorker
+    workers-auto-discovery:
+      workflow-packages:
+        - io.temporal.spring.boot.autoconfigure.byworkernameresolver
+      register-activity-beans: true
+      register-nexus-service-beans: true
+resolver-test:
+  worker-name: resolvedWorker
+
+---
+spring:
+  config:
+    activate:
       on-profile: auto-discovery-composed-annotation
   temporal:
     workers-auto-discovery:
